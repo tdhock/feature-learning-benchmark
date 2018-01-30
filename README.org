@@ -1,0 +1,8 @@
+This repo is for creating a benchmark data set for learning features
+for peak calling.
+
+** 30 Jan 2018
+
+[[file:download.R]] used to download count data bedGraph.gz files, along
+with labels.bed files (38337 labels total in 5581 problems), for a
+total of almost 40GB of data.
