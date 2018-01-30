@@ -38,6 +38,10 @@ for(i in i.vec){
     }
     ##cov.dt <- fread(paste("zcat", coverage.bedGraph.gz))
   }
-  labels.list[[paste(i)]] <- labels.dt
+  labels.list[[paste(i)]] <- data.table(prob.dir, labels.dt)
 }
 labels <- do.call(rbind, labels.list)
+per.set <- labels[, list(labels=.N), by=list(set=sub("/.*", "", prob.dir))]
+mb <- fread("du -ms data/*|sed 's#data/##'")
+setnames(mb, c("megabytes", "set"))
+mb[per.set, on=list(set)][order(labels)]

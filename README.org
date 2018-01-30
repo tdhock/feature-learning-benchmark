@@ -6,3 +6,23 @@ for peak calling.
 [[file:download.R]] used to download count data bedGraph.gz files, along
 with labels.bed files (38337 labels total in 5581 problems), for a
 total of almost 40GB of data.
+
+#+BEGIN_SRC 
+> mb[per.set, on=list(set)][order(labels)]
+    megabytes                      set labels
+ 1:       554       H3K36me3_TDH_other    200
+ 2:       377      H3K36me3_TDH_ENCODE    338
+ 3:       375       H3K4me3_TDH_ENCODE    525
+ 4:       592       H3K27me3_RL_cancer    570
+ 5:       798         H3K27ac_TDH_some    627
+ 6:       906      H3K36me3_TDH_immune    630
+ 7:       296        H3K27me3_TDH_some    696
+ 8:      2407          CTCF_TDH_ENCODE   1378
+ 9:      3223           H3K4me1_TDH_BP   1584
+10:      5871       H3K36me3_AM_immune   1743
+11:      6407          ATAC_JV_adipose   3241
+12:      3017       H3K4me3_PGP_immune   3780
+13:      2902       H3K4me3_TDH_immune   3807
+14:      5421 H3K27ac-H3K4me3_TDHAM_BP  15961
+> 
+#+END_SRC
