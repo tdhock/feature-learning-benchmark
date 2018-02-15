@@ -1,11 +1,17 @@
 This repo is for creating a benchmark data set for learning features
 for peak calling.
 
+** 15 Feb 2018
+
+[[file:folds.R]] implements a randomized heuristic for assigning problems
+to folds such that there are approximately equal numbers of labels in
+each fold.
+
 ** 30 Jan 2018
 
 [[file:download.R]] used to download count data bedGraph.gz files, along
 with labels.bed files (38337 labels total in 5581 problems), for a
-total of almost 40GB of data.
+total of almost 40GB of data. Maybe distribute one file per data set?
 
 #+BEGIN_SRC 
 > mb[per.set, on=list(set)][order(labels)]
