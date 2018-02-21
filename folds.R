@@ -4,16 +4,26 @@ for(data.dir in data.dir.vec){
   print(data.dir)
   labels.bed.vec <- Sys.glob(file.path(data.dir, "samples/*/*/problems/*/labels.bed"))
   lab.counts <- data.table(labels.bed=labels.bed.vec)[, {
-    if(0 < file.size(labels.bed)){
+    if(0 == file.size(labels.bed)){
+      pdir <- dirname(labels.bed)
+      cat("Deleting", pdir, "\n")
+      unlink(pdir, recursive=TRUE)
+      data.table()
+    }else{
       lab.dt <- fread(labels.bed)
       setnames(lab.dt, c("chrom", "labelStart", "labelEnd", "annotation"))
       lab.dt[, list(
         negative=sum(annotation != "peaks"),
         positive=sum(annotation != "noPeaks"),
+        peaks=sum(annotation == "peaks"),
+        peakStart=sum(annotation == "peakStart"),
+        peakEnd=sum(annotation == "peakEnd"),
+        noPeaks=sum(annotation == "noPeaks"),
         prob.labels=.N
         )]
     }
   }, by=list(labels.bed)]
+  print(lab.counts[0 < peaks & 0 < peakStart & 0 < peakEnd & 0 < noPeaks])
   ## lab.counts <- fread(paste("wc -l", file.path(data.dir, "samples/*/*/problems/*/labels.bed"), "|head -n -1"))
   ## setnames(lab.counts, c("prob.labels", "labels.bed"))
   lab.counts[, prob.dir := basename(dirname(labels.bed))]
@@ -49,9 +59,9 @@ for(data.dir in data.dir.vec){
     ), by=list(seed)]
   best.seed <- seed.ranges[n.folds==4][which.min(max-min), seed]
   fold.counts <- seed.counts[seed==best.seed]
-  print(fold.counts)
+  ##print(fold.counts)
   selected.folds <- seed.folds[seed==best.seed]
-  print(selected.folds)
+  ##print(selected.folds)
   stopifnot(nrow(fold.counts)==4)
   stopifnot(all(0 < fold.counts$total.negative))
   stopifnot(all(0 < fold.counts$total.positive))
