@@ -1,5 +1,225 @@
 This repo is for creating a benchmark data set for learning features
-for peak calling.
+for predicting peaks in epigenomic data.
+
+** Abstract <200 characters
+
+ChIP-seq experiments characterize protein modifications or binding at
+specific genomic locations in specific samples. The machine learning
+problem in these data is structured binary classification.
+
+** Source
+
+Toby Dylan Hocking
+toby.hocking@mail.mcgill.ca
+McGill University
+
+** Number of instances
+
+#+BEGIN_SRC R
+> length(Sys.glob("data/*/samples/*/*/problems/*"))
+[1] 4960
+> 
+#+END_SRC
+
+** Number of attributes
+
+#+BEGIN_SRC R
+> data.table(namedCapture::str_match_named(unique(basename(Sys.glob("data/*/samples/*/*/problems/*"))), "(?<chrom>chr[^:]+):(?<chromStart>[0-9]+)-(?<chromEnd>[0-9]+)", list(chromStart=as.integer, chromEnd=as.integer)))[, quantile(chromEnd-chromStart)]
+       0%       25%       50%       75%      100% 
+   220313   9057730  26144352  48590557 115591997 
+> 
+#+END_SRC
+
+** Relevant Information
+
+These data are significant because they are among the first to provide
+labels that formalize the genome-wide peak detection problem, which is
+a very important problem for biomedical / epigenomics
+researchers. These labels can be used to train and test supervised
+peak detection algorithms, as explained below.
+
+The data are in problem directories such as
+
+data/<SET>/samples/<GROUP>/<SAMPLE>/problems/<PROBLEM>
+
+Each problem directory contains two files, labels.bed (weak labels)
+and coverage.bedGraph.gz (inputs). 
+
+Each coverage.bedGraph.gz file represents a vector of non-negative
+integer count data, one entry for each genomic position in a subset of
+the human genome hg19. For example
+
+data/H3K9me3_TDH_BP/samples/tcell/ERS358697/problems/chr8:48135599-86500000/coverage.bedGraph.gz
+
+represents a vector defined on all genomic positions from 48135600 to
+86500000 on chr8 (for a particular tcell sample named ERS358697, in
+the H3K9me3_TDH_BP data set). To save disk space the vectors are saved
+using a run-length encoding; for example the first three lines of this
+file are
+
+chr8	48135599	48135625	0
+chr8	48135625	48135629	1
+chr8	48135629	48135632	2
+
+which mean that the first 26 entries of the vector are 0, the next
+four entries are 1, and the following three entries are 2. Note that
+start positions are 0-based but end positions are 1-based, so the
+first line means a 0 from all positions from 48135600 to 48135625
+(excluding the start position 48135599 for which we have no
+information).
+
+The goal is to learn a function that takes the coverage.bedGraph.gz
+file as input, and outputs a binary classification for every genomic
+position. The positive class represents peaks (typically large counts)
+and the negative class represents background noise (typically small
+counts).
+
+Weak labels are given in labels.bed files, each of which indicates
+several regions of the genome with or without peaks. For example the
+file
+
+data/H3K4me3_XJ_immune/samples/bcell/McGill0091/problems/chr1:30028082-103863906/labels.bed
+
+contains the 6 labels below:
+
+chr1	33111786	33114894	noPeaks
+chr1	33114941	33116174	peakStart
+chr1	33116183	33116620	peakEnd
+chr1	33116633	33116755	noPeaks
+chr1	33116834	33118135	peaks
+chr1	33118161	33120163	noPeaks
+
+The four labels are interpreted as follows:
+
+noPeaks: all of the predictions in this region should be negative /
+background noise. For example the first line in the file above means
+that for a vector x_i of count data from i=30028083 to i=103863906,
+the desired function should predict negative / background noise
+f(x_i)=0 from i=33111787 to i=33114894. If positive / peaks are
+predicted f(x_i)=1 for any i in this region, that is counted as a
+false positive label.
+
+peakStart: there should be exactly one peak start predicted in this
+region. A peak start is defined as a position i such that a peak is
+predicted there f(x_i)=1 but not at the previous position
+f(x_{i-1})=0. The exact position is unspecified; any position is fine,
+as long as there is only one start in the region. Predicting exactly
+one peak start in this region results in a true positive. More starts
+is a false positive, and fewer starts is a false negative. For
+example,
+
+ [peakStart] 
+0 0 0 1 1 1 1 -> correct.  
+0 0 1 1 1 1 1 -> also correct.  
+0 0 0 0 0 0 0 -> false negative (no peak starts).
+0 0 1 0 1 1 1 -> flase positive (two peak starts).
+
+peakEnd: there should be exactly one peak end predicted in this
+region. A peak end is defined as a position i such that a peak is
+predicted there f(x_i)=1 but not at the next position f(x_{i+1})=0.
+The exact position is unspecified; any position is fine, as long as
+there is only one end in the region. Predicting exactly one peak end
+in this region results in a true positive. More ends is a false
+positive, and fewer ends is a false negative. For example,
+
+ [ peakEnd ] 
+1 1 1 1 0 0 0 -> correct.  
+1 1 1 1 1 0 0 -> also correct.  
+0 0 0 0 0 0 0 -> false negative (no peak ends).
+1 1 1 0 1 0 0 -> flase positive (two peak ends).
+
+peaks: there should be at least one peak predicted somewhere in this
+region (anywhere is fine). Zero predicted peaks in this region is a
+false negative. If there is a predicted peak somewhere in this region
+that is a true positive.
+
+For a particular set of predicted peaks f(x), the total number of
+incorrect labels (false positives + false negatives) can be computed
+as an evaluation metric (smaller is better). Typically the peak
+predictions are also stored using a run-length encoding; the error
+rates can be computed using the reference implementation in R package
+PeakError, https://github.com/tdhock/PeakError
+
+Receiver Operating Characteristic curves can be computed for a family
+of predicted peaks f_lambda(x), where lambda is some significance
+threshold, intercept parameter, etc. Compute the TPR and FPR as follows:
+
+TPR = (total number of true positives)/(total number of labels that could have a true positive)
+ = (number of correct peaks, peakStart, peakEnd labels)/(number of peaks, peakStart, peakEnd labels)
+
+FPR = (total number of false positives)/(total number of labels that could have a false positive)
+ = (
+number of peakStart/End labels with two or more predicted starts/end + 
+number of noPeaks labels with predicted peaks
+)/(number of peakStart, peakEnd, and noPeaks labels)
+
+Suggested fold ID numbers for four-fold cross-validation experiments
+can be found in data/*/folds.csv files. For example
+data/H3K36me3_TDH_other/folds.csv contains
+
+problem,fold
+chr16:8686921-32000000,1
+chr16:60000-8636921,1
+chr21:43005559-44632664,2
+chr14:19050000-107289540,3
+chr15:29209443-77800000,4
+
+which means that problems chr16:8686921-32000000 and
+chr16:60000-8636921 should be considered fold ID 1,
+chr21:43005559-44632664 should be considered fold ID 2, etc. This
+means that for data set H3K36me3_TDH_other, the fold ID 2 consists of
+all data in
+data/H3K36me3_TDH_other/samples/*/*/problems/chr21:43005559-44632664
+directories.
+
+There are several types of learning settings that could be used with
+these data. Here are four examples.
+
+Unsupervised learning. Train models only using the
+coverage.bedGraph.gz files. Only use the labels for evaluation (not
+for training model parameters).
+
+Supervised learning. Train models only using the coverage.bedGraph.gz
+and labels.bed files in the train set. Use the labels in the test set
+to evaluate prediction accuracy.
+
+Semi-supervised learning. Train models using the coverage.bedGraph.gz
+and labels.bed files in the train set. You can additionally use the
+coverage.bedGraph.gz files in the test set at training time. Use the
+labels in the test set to evaluate prediction accuracy.
+
+Multi-task learning. Many data sets come from different experiment
+types, so have different peak patterns. For example H3K4me3_TDH_immune
+is a H3K4me3 histone modification (sharp peak pattern) and
+H3K36me3_TDH_immune is a H3K36me3 histone modification (broad peak
+pattern). Therefore it is not expected that models should generalize
+between data sets. However there is something common across data sets
+in that in each data set, the peak / positive class is large values,
+wheras the noise / negative class is small values. Therefore
+multi-task learning may be interesting. To compare a multi-task
+learning model to a single-task learning model, use the suggested
+cross-validation fold IDs. For test fold ID 1, train both the
+multi-task and single-task learning models using all other folds, then
+make predictions on all data with fold ID 1. 
+
+** Attribute Information
+
+Each attribute is a non-negative integer representing the number DNA
+sequence reads that has aligned at that particular region of the
+genome. Larger values are more likely to be peaks / positive, smaller
+values are more likely to be noise / negative.
+
+** Relevant Papers
+
+The labeling method and details on how to compute the number of incorrect labels is described in
+
+Optimizing ChIP-seq peak detectors using visual labels and supervised machine learning.
+Toby Dylan Hocking, Patricia Goerner-Potvin, Andreanne Morin, Xiaojian Shao, Tomi Pastinen, Guillaume Bourque.
+Bioinformatics, Volume 33, Issue 4, 15 February 2017, Pages 491–499, https://doi.org/10.1093/bioinformatics/btw672
+
+** Citation requests
+
+Please cite the Bioinformatics paper above.
 
 ** 15 Feb 2018
 
