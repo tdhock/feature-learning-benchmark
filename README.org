@@ -1,5 +1,24 @@
-This repo is for creating a benchmark data set for learning features
-for predicting peaks in epigenomic data.
+Supervised peak detection benchmark data set
+
+This repo contains code for creating a benchmark data set for
+predicting peaks in epigenomic data. It has been submitted to the UCI
+Machine Learning Repository and is now online as the [[https://archive.ics.uci.edu/ml/datasets/chipseq#][chipseq]] data set.
+
+From a machine learning perspective, the main interest/challenge is
+designing a loss function and algorithm that exploits the structure of
+the weak labels. For more details about the weak labels please read
+the Relevant Information below.
+
+** Download instructions
+
+#+BEGIN_SRC shell-script
+wget https://archive.ics.uci.edu/ml/machine-learning-databases/00439/peak-detection-data.tar.xz
+tar xvf peak-detection-data.tar.xz
+#+END_SRC
+
+Download [[https://archive.ics.uci.edu/ml/machine-learning-databases/00439/peak-detection-data.tar.xz][peak-detection-data.tar.xz]] which is a 35GB [[https://tukaani.org/xz/][xz]]-compressed
+tar-file. After downloading and un-tar-ing (perhaps using the commands
+above), you should have a =data= directory.
 
 ** Abstract <200 characters
 
@@ -57,9 +76,11 @@ the H3K9me3_TDH_BP data set). To save disk space the vectors are saved
 using a run-length encoding; for example the first three lines of this
 file are
 
+#+BEGIN_SRC 
 chr8	48135599	48135625	0
 chr8	48135625	48135629	1
 chr8	48135629	48135632	2
+#+END_SRC
 
 which mean that the first 26 entries of the vector are 0, the next
 four entries are 1, and the following three entries are 2. Note that
@@ -82,12 +103,14 @@ data/H3K4me3_XJ_immune/samples/bcell/McGill0091/problems/chr1:30028082-103863906
 
 contains the 6 labels below:
 
+#+BEGIN_SRC 
 chr1	33111786	33114894	noPeaks
 chr1	33114941	33116174	peakStart
 chr1	33116183	33116620	peakEnd
 chr1	33116633	33116755	noPeaks
 chr1	33116834	33118135	peaks
 chr1	33118161	33120163	noPeaks
+#+END_SRC
 
 The four labels are interpreted as follows:
 
@@ -108,11 +131,13 @@ one peak start in this region results in a true positive. More starts
 is a false positive, and fewer starts is a false negative. For
 example,
 
+#+BEGIN_SRC 
  [peakStart] 
 0 0 0 1 1 1 1 -> correct.  
 0 0 1 1 1 1 1 -> also correct.  
 0 0 0 0 0 0 0 -> false negative (no peak starts).
 0 0 1 0 1 1 1 -> flase positive (two peak starts).
+#+END_SRC
 
 peakEnd: there should be exactly one peak end predicted in this
 region. A peak end is defined as a position i such that a peak is
@@ -122,11 +147,13 @@ there is only one end in the region. Predicting exactly one peak end
 in this region results in a true positive. More ends is a false
 positive, and fewer ends is a false negative. For example,
 
+#+BEGIN_SRC 
  [ peakEnd ] 
 1 1 1 1 0 0 0 -> correct.  
 1 1 1 1 1 0 0 -> also correct.  
 0 0 0 0 0 0 0 -> false negative (no peak ends).
 1 1 1 0 1 0 0 -> flase positive (two peak ends).
+#+END_SRC
 
 peaks: there should be at least one peak predicted somewhere in this
 region (anywhere is fine). Zero predicted peaks in this region is a
@@ -157,12 +184,14 @@ Suggested fold ID numbers for four-fold cross-validation experiments
 can be found in data/*/folds.csv files. For example
 data/H3K36me3_TDH_other/folds.csv contains
 
+#+BEGIN_SRC 
 problem,fold
 chr16:8686921-32000000,1
 chr16:60000-8636921,1
 chr21:43005559-44632664,2
 chr14:19050000-107289540,3
 chr15:29209443-77800000,4
+#+END_SRC
 
 which means that problems chr16:8686921-32000000 and
 chr16:60000-8636921 should be considered fold ID 1,
@@ -211,7 +240,7 @@ values are more likely to be noise / negative.
 
 ** Relevant Papers
 
-The labeling method and details on how to compute the number of incorrect labels is described in
+The labeling method and details on how to compute the number of incorrect labels is described in:
 
 Optimizing ChIP-seq peak detectors using visual labels and supervised machine learning.
 Toby Dylan Hocking, Patricia Goerner-Potvin, Andreanne Morin, Xiaojian Shao, Tomi Pastinen, Guillaume Bourque.
@@ -221,13 +250,39 @@ Bioinformatics, Volume 33, Issue 4, 15 February 2017, Pages 491–499, https://d
 
 Please cite the Bioinformatics paper above.
 
-** 15 Feb 2018
+** Current state-of-the-art
+
+The current state-of-the-art on these type of problems is constrained
+optimal changepoint detection with learned penalty functions, as
+described in our [[http://proceedings.mlr.press/v37/hocking15.html][ICML'15]] paper. The changepoint detection method
+described in that paper is the Constrained Dynamic Programming
+Algorithm which is quadratic time so is too slow for these large data
+sets (the largest coverage.bedGraph.gz file has 11,499,958 lines). A
+faster alternative is [[https://github.com/tdhock/PeakSegPipeline][PeakSegPipeline::PeakSegFPOP]]_disk which
+implements the log-linear time algorithm described in [[https://arxiv.org/abs/1703.03352][arXiv:1703.03352]]
+(it computes the most likely peak positions for a given penalty
+parameter). Typical unsupervised methods (which do not use the labels)
+for choosing the penalty parameter are theoretically-motivated
+penalties (AIC/BIC) or cross-validation. The current methods for
+learning the penalty function use pre-defined features as inputs
+(number of data points, mean, variance estimates, quantiles, etc) and
+the predicted penalty is the output. This data set may be useful to
+explore feature learning methods such as deep convolutional neural
+networks, which could be used to relax the assumption of pre-defined
+features. The interest of this data set is that it has a large number
+of labels (e.g. 15961 labels in the H3K27ac-H3K4me3_TDHAM_BP data
+set), which is an order of magnitude more labels than other benchmark
+data sets of this type (e.g. 3418 labels in the [[https://cran.r-project.org/package%3Dneuroblastoma][neuroblastoma]] data
+set). For more info about supervised changepoint detection see [[https://tdhock.github.io/change-tutorial/Supervised.html][My
+useR2017 tutorial]].
+
+** 15 Feb 2018 fold assignment code
 
 [[file:folds.R]] implements a randomized heuristic for assigning problems
 to folds such that there are approximately equal numbers of labels in
 each fold.
 
-** 30 Jan 2018
+** 30 Jan 2018 data set sizes
 
 [[file:download.R]] used to download count data bedGraph.gz files, along
 with labels.bed files (38337 labels total in 5581 problems), for a
