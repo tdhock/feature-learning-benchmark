@@ -127,9 +127,9 @@ region. A peak start is defined as a position i such that a peak is
 predicted there f(x_i)=1 but not at the previous position
 f(x_{i-1})=0. The exact position is unspecified; any position is fine,
 as long as there is only one start in the region. Predicting exactly
-one peak start in this region results in a true positive. More starts
-is a false positive, and fewer starts is a false negative. For
-example,
+one peak start in this region results in a true positive (and true
+negative). More starts is a false positive, and fewer starts is a
+false negative. For example,
 
 #+BEGIN_SRC 
  [peakStart] 
@@ -144,8 +144,9 @@ region. A peak end is defined as a position i such that a peak is
 predicted there f(x_i)=1 but not at the next position f(x_{i+1})=0.
 The exact position is unspecified; any position is fine, as long as
 there is only one end in the region. Predicting exactly one peak end
-in this region results in a true positive. More ends is a false
-positive, and fewer ends is a false negative. For example,
+in this region results in a true positive (and true negative). More
+ends is a false positive, and fewer ends is a false negative. For
+example,
 
 #+BEGIN_SRC 
  [ peakEnd ] 
@@ -172,12 +173,15 @@ of predicted peaks f_lambda(x), where lambda is some significance
 threshold, intercept parameter, etc. Compute the TPR and FPR as follows:
 
 TPR = (total number of true positives)/(total number of labels that could have a true positive)
- = (number of correct peaks, peakStart, peakEnd labels)/(number of peaks, peakStart, peakEnd labels)
+ = (
+number of peaks labels with at least one overlapping predicted peak +
+number of peakStart/peakEnd labels with at least one predicted start/end
+)/(number of peaks, peakStart, peakEnd labels)
 
 FPR = (total number of false positives)/(total number of labels that could have a false positive)
  = (
 number of peakStart/End labels with two or more predicted starts/end + 
-number of noPeaks labels with predicted peaks
+number of noPeaks labels with overlapping predicted peaks
 )/(number of peakStart, peakEnd, and noPeaks labels)
 
 Suggested fold ID numbers for four-fold cross-validation experiments
