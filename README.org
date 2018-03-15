@@ -280,6 +280,36 @@ data sets of this type (e.g. 3418 labels in the [[https://cran.r-project.org/pac
 set). For more info about supervised changepoint detection see [[https://tdhock.github.io/change-tutorial/Supervised.html][My
 useR2017 tutorial]].
 
+To compare against this baseline, the following files are included in
+this repository:
+- [[file:labeled_problems_features.csv]]: pre-defined features to be used
+  as inputs in the machine learning problem.
+- [[file:labeled_problems_targets.csv]]: outputs for the machine learning
+  problem: target interval of log(penalty) values which achieves min
+  incorrect labels. The goal is to learn a function that inputs the
+  vector of features and outputs a value in this interval. These
+  outputs can be used to compute a simple prediction error metric
+  (number of incorrectly predicted intervals).
+- [[file:labeled_problems_errors.csv]]: used to compute a more relevant
+  prediction error metric, the number of incorrectly predicted labels
+  (and ROC-AUC). For each problem the table gives the number of false
+  positives (fp), false negatives (fn), and total incorrect labels
+  (errors) for intervals of log(penalty) values (min.log.penalty,
+  max.log.penalty). For example the first row is
+
+#+BEGIN_SRC 
+ATAC_JV_adipose/samples/AC1/MSC77/problems/chr10:18024675-38818835,0,-Inf,2.05953368773019,6,0,6
+#+END_SRC
+
+and should be interpreted in the following way:
+- for the problem ATAC_JV_adipose/samples/AC1/MSC77/problems/chr10:18024675-38818835
+- if your function predicts a value between -Inf and 2.05953368773019
+- then the predicted peaks are given by running PeakSegFPOP with penalty=0
+- which yields 6 fp, 0 fn, and 6 errors.
+
+- TODO [[file:labeled_problems_possible_errors.csv]] with total number of
+  labels, for computing error percent and ROC.
+
 ** 15 Feb 2018 fold assignment code
 
 [[file:folds.R]] implements a randomized heuristic for assigning problems
