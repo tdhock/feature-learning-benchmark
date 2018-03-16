@@ -307,8 +307,19 @@ and should be interpreted in the following way:
 - then the predicted peaks are given by running PeakSegFPOP with penalty=0
 - which yields 6 fp, 0 fn, and 6 errors.
 
-- TODO [[file:labeled_problems_possible_errors.csv]] with total number of
-  labels, for computing error percent and ROC.
+- [[file:labeled_problems_possible_errors.csv]] contains the total number
+  of labels, for computing error percent and Receiver Operating
+  Characteristic (ROC) curves. If there is no model/parameter with
+  peaks in all positive labels, then the ROC curve does not have a
+  point at FPR=TPR=1, so it is suggested to use linear extrapolation
+  between that point and the point in the ROC space which corresponds
+  to the model with the most predicted peaks. If there is a model with
+  non-hierarchical peaks (e.g. there is a parameter lambda_1 which
+  yields 1 peak, and there is a parameter lambda_2 which yields 2
+  peaks which are both different from the lambda_1 peak) then the ROC
+  curve may be non-monotonic. In that case it is suggested to compute
+  AUC using an algorithm that works for general polygons, for example
+  geometry::polyarea in R.
 
 ** 15 Feb 2018 fold assignment code
 
