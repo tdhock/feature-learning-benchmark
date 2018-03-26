@@ -308,7 +308,7 @@ and should be interpreted in the following way:
 - which yields 6 fp, 0 fn, and 6 errors.
 
 - [[file:labeled_problems_possible_errors.csv]] contains the total number
-  of labels, for computing error percent and Receiver Operating
+  of labels, for computing test error/accuracy rates and Receiver Operating
   Characteristic (ROC) curves. If there is no model/parameter with
   peaks in all positive labels, then the ROC curve does not have a
   point at FPR=TPR=1, so it is suggested to use linear extrapolation
@@ -320,6 +320,25 @@ and should be interpreted in the following way:
   curve may be non-monotonic. In that case it is suggested to compute
   AUC using an algorithm that works for general polygons, for example
   geometry::polyarea in R.
+- [[file:labeled_problems_AUC.R]] contains R code for computing K-fold CV
+  test error/accuracy/AUC, given the folds defined in the data set
+  (e.g. [[file:data/ATAC_JV_adipose/folds.csv]]). To use this script,
+  first save predicted log(penalty) values in the
+  [[file:labeled_problems_pred]] directory. Each model should be saved as
+  a separate csv file, with two columns: prob.dir and
+  pred.log.lambda. For example this repo has two unsupervised
+  baselines: (1) [[file:labeled_problems_pred/AIC.csv]] is the constant
+  AIC baseline, and (2) [[file:labeled_problems_pred/BIC.csv]] is the
+  penalty=log(number of data points) baseline. Running the R script
+  will create a labeled_problems_pred_error/MODEL.csv file with one
+  line for every (data set, fold) combination. Columns include test
+  error/accuracy/FPR/TPR and test AUC.
+- [[file:labeled_problems_plot_test_accuracy.R]] is an R script that can
+  be used to plot such test error metrics.
+- [[file:labeled_problems_folds.csv]] is a copy of the folds defined in
+  the data set. (included to be able to compute K-fold CV test
+  error/accuracy/AUC metrics for baselines, even if the full data set
+  is not available)
 
 ** 15 Feb 2018 fold assignment code
 
