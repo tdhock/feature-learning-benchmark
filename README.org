@@ -339,6 +339,37 @@ and should be interpreted in the following way:
   the data set. (included to be able to compute K-fold CV test
   error/accuracy/AUC metrics for baselines, even if the full data set
   is not available)
+- [[file:labeled_problems_pred_IntervalRegressionCV.R]] computes
+  L1-regularized linear model predictions, saving them to
+  [[file:labeled_problems_pred/IntervalRegressionCV.csv]]
+- [[file:labeled_problems_pred_BestConstant.R]] computes model predictions
+  for the best constant penalty, based on the penalty error functions
+  in the training data. Predictions saved to
+  [[file:labeled_problems_pred/BestConstant.csv]]
+- [[file:labeled_problems_pred_MultiTaskIRCV.R]] computes a linear
+  multi-task learning model, by creating indicator variables for each
+  task. Predictions saved to [[file:labeled_problems_pred/MultiTaskIRCV.csv]]
+
+The figure below shows prediction accuracy and AUC, using the
+designated four-fold cross-validation scheme. It shows room for
+improvement in penalty function learning algorithms:
+- learned linear penalty functions (IntervalRegressionCV,
+  MultiTaskIRCV) have similar test accuracy as the learned constant
+  penalty (BestConstant).
+- All models have similar test AUC.
+
+[[file:labeled_problems_plot_test_accuracy.png]]
+
+** Ideas/links
+
+- Deep Convnet with spatial pyramid pooling, in order to train the
+  model using inputs of variable sizes (different chrom
+  subsets). https://arxiv.org/abs/1406.4729
+- Typical neural network implementations, e.g. [[http://scikit-learn.org/stable/modules/neural_networks_supervised.html][scikit-learn]], support
+  regression but not censored outputs. We could either (1) convert
+  target intervals into a real-valued output and use existing code, or
+  (2) implement code for a loss function that exploits the structure
+  of the censored outputs.
 
 ** 15 Feb 2018 fold assignment code
 

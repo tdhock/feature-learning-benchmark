@@ -31,7 +31,8 @@ for(pred.csv in pred.csv.vec){
   pred.error.dt <- pred.folds[, {
     cat(pred.csv, set.name, fold, "\n")
     fold.pred.dt <- data.table(prob.dir, pred.log.lambda)
-    roc <- ROChange(possible.errors, fold.pred.dt, "prob.dir")
+    fold.errors <- possible.errors[fold.pred.dt, on=list(prob.dir)]
+    roc <- ROChange(fold.errors, fold.pred.dt, "prob.dir")
     with(roc, data.table(thresholds[threshold=="predicted"], auc))
   }, by=list(set.name, fold)]
   out.dt <- pred.error.dt[, data.table(
