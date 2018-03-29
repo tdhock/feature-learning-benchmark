@@ -87,6 +87,10 @@ gg <- ggplot()+
   geom_abline(slope=1, intercept=0, color="grey")+
   coord_equal()+
   geom_point(aes(
-    BestConstant, MultiTaskIRCV),
+    BestConstant, UpperBoundAUC),
              data=auc.models)
-  
+print(gg)
+
+auc.models[order(UpperBoundAUC-BestConstant)]
+
+accuracy.models <- dcast(error.dt, set.fac + fold ~ model, value.var="accuracy.percent")
