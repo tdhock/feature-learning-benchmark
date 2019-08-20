@@ -34,8 +34,9 @@ wtargets[, pred.log.lambda := ifelse(
   min.log.lambda == -Inf, max.log.lambda-1, ifelse(
     max.log.lambda == Inf, min.log.lambda+1,
     (min.log.lambda+max.log.lambda)/2))]
-fwrite(wtargets[, .(prob.dir, pred.log.lambda)], file.path("labeled_problems_pred", "UpperBoundAUC.csv"))
+fwrite(wtargets[, .(prob.dir, pred.log.lambda)], file.path("labeled_problems_pred", "UpperBoundAccWeighted.csv"))
 
 ## issue: this actually results in AUC which is sometimes lower than
 ## the BestConstant model... why? and how can we compute the best
 ## possible?
+

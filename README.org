@@ -371,6 +371,12 @@ improvement in penalty function learning algorithms:
   (2) implement code for a loss function that exploits the structure
   of the censored outputs.
 
+** 20 Aug 2019 Min Area Under Min(FP,FN)
+
+[[file:auc.improved.R]] performs the computation using a gradient descent
+algorithm, and [[file:figure-auc-improved-interactive.R]] visualizes the
+results: [[http://jan.ucc.nau.edu/~th798/viz/2019-08-20-min-area-under-min-fp-fn/][rendered data viz]].
+
 ** 15 Feb 2018 fold assignment code
 
 [[file:folds.R]] implements a randomized heuristic for assigning problems
