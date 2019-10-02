@@ -170,10 +170,13 @@ for(i in seq_along(i.todo)){
       test.fold.info,
       pred.name,
       roc=list(list(roc)),
+      pred=list(list(pred[, .(prob.dir, pred.log.lambda)])),
       thresholds[threshold=="min.error"],
       auc))
   }
 }
 (auc.improved <- do.call(rbind, auc.improved.list))
+
+auc.improved[, pred[[1]], by=list(test.fold.i, pred.name)]
 
 saveRDS(auc.improved, "auc.improved.rds")
