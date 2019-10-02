@@ -59,23 +59,37 @@ for(i in seq_along(i.todo)){
   test.fold.errors[, max.log.lambda := max.log.penalty]
   test.fold.errors[, seg.i := cumsum(
     c(1, diff(fp)!=0 | diff(fn) != 0)), by=.(prob.dir)]
-  test.fold.segs <- test.fold.errors[, .(
+  possible.errors <- possible.dt[test.fold.errors, on=list(
+    set.name, fold, prob.dir)]
+  possible.errors[, possible.fn := possible.tp]
+  test.fold.segs <- possible.errors[, .(
     min.log.lambda=min(min.log.lambda),
     max.log.lambda=max(max.log.lambda)
-  ), by=.(prob.dir, seg.i)]
+  ), by=.(prob.dir, seg.i, fp, fn, possible.fn, possible.fp)]
+  test.fold.segs[, wfp := fp*possible.fn]
+  test.fold.segs[, wfn := fn*possible.fp]
+  test.fold.segs[, errors := wfp+wfn]#equal weight errors.
   test.fold.segs[, mid.log.lambda := (max.log.lambda+min.log.lambda)/2]
-  test.fold.targets <- penaltyLearning::targetIntervals(
-    test.fold.errors, "prob.dir")
-  test.fold.targets[, width := max.log.lambda-min.log.lambda]
-  initial.pred <- test.fold.targets[order(width==Inf, -width), data.table(
-    prob.dir,
-    pred.log.lambda=ifelse(
-      max.log.lambda==Inf, min.log.lambda+1, ifelse(
-        min.log.lambda==-Inf, max.log.lambda-1,
-        (min.log.lambda+max.log.lambda)/2)
-    )
-  )]
-  initial.pred[!is.finite(pred.log.lambda), pred.log.lambda := 0]
+  pred.list <- list()
+  target.list <- list(
+    initial=test.fold.errors,
+    weighted=test.fold.segs)
+  for(pred.name in names(target.list)){
+    target.err.dt <- target.list[[pred.name]]
+    test.fold.targets <- penaltyLearning::targetIntervals(
+      target.err.dt, "prob.dir")
+    test.fold.targets[, width := max.log.lambda-min.log.lambda]
+    target.pred <- test.fold.targets[order(width==Inf, -width), data.table(
+      prob.dir,
+      pred.log.lambda=ifelse(
+        max.log.lambda==Inf, min.log.lambda+1, ifelse(
+          min.log.lambda==-Inf, max.log.lambda-1,
+          (min.log.lambda+max.log.lambda)/2)
+      )
+    )]
+    target.pred[!is.finite(pred.log.lambda), pred.log.lambda := 0]
+    pred.list[[pred.name]] <- target.pred
+  }
   ## only need to compute once:
   thresh.dt <- test.fold.errors[order(-min.log.lambda), {
     fp.diff <- diff(fp)
@@ -90,7 +104,7 @@ for(i in seq_along(i.todo)){
   stopifnot(length(ltab)==1)
   ## initialization:
   first.dt <- test.fold.errors[max.log.lambda==Inf]
-  pred.dt <- data.table(initial.pred, direction=1)
+  pred.dt <- data.table(pred.list$initial, direction=1)
   step.number <- 1
   max.step <- biggest.step
   improving <- TRUE
@@ -108,7 +122,7 @@ for(i in seq_along(i.todo)){
     step.size.vec <- seq(0, max.step, l=20)
     step.size.loss <- sapply(step.size.vec, get.step)
     yrange.big <- diff(range(step.size.loss))>1e-10
-    if(yrange.big){
+    if(FALSE){
       plot(
         step.size.vec, step.size.loss,
         main=paste("step", step.number))
@@ -146,17 +160,11 @@ for(i in seq_along(i.todo)){
     max.log.lambda > pred.log.lambda)]
   mid.pred[, pred.log.lambda := ifelse(
     is.finite(mid.log.lambda), improved.pred, mid.log.lambda)]
-  pred.list <- list(
-    initial=initial.pred,
-    ##mid=mid.pred,
-    improved=pred.dt)
-  possible.errors <- possible.dt[test.fold.errors, on=list(
-    set.name, fold, prob.dir)]
-  possible.errors[, possible.fn := possible.tp]
+  pred.list$improved <- data.table(pred.dt)
   for(pred.name in names(pred.list)){
     pred <- pred.list[[pred.name]]
     L <- penaltyLearning::ROChange(possible.errors, pred, "prob.dir")
-    print(L$auc)
+    cat(sprintf("%s %f\n", pred.name, L$auc))
     auc.improved.list[[paste(test.fold.i, pred.name)]] <- with(L, data.table(
       test.fold.i,
       test.fold.info,
