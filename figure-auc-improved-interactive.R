@@ -1,13 +1,18 @@
 library(data.table)
 library(animint2)
-auc.improved <- readRDS("auc.improved.rds")
-
+auc.orig <- nc::capture_first_df(
+  readRDS("auc.improved.rds"),
+  pred.name=list(
+    weight.name=".*?",
+    "[.]",
+    pred.type=".*"))
+auc.improved <- auc.orig[weight.name=="class"]
 auc.improved[, set.fold := paste0(set.name, "/", fold)]
 roc.dt.list <- list()
 for(test.fold.i in 1:nrow(auc.improved)){
   one.fold <- auc.improved[test.fold.i]
   roc.dt.list[[test.fold.i]] <- one.fold[, data.table(
-    set.fold, pred.name, roc[[1]])]
+    set.fold, pred.type, roc[[1]])]
 }
 (roc.dt <- do.call(rbind, roc.dt.list))
 roc.dt[, fn0 := fn-min(fn), by=.(set.fold)]
@@ -16,9 +21,9 @@ roc.dt[, width := max.thresh-min.thresh]
 roc.dt[, area := ifelse(min.fp.fn==0, 0, min.fp.fn*width)]
 (aum.dt <- roc.dt[, .(
   aum=sum(area)
-), by=.(set.fold, pred.name)][order(aum)])
+), by=.(set.fold, pred.type)][order(aum)])
 aum.dt[, log.aum := log10(aum+1)]
-aum.wide <- dcast(aum.dt, set.fold ~ pred.name, value.var="log.aum")
+aum.wide <- dcast(aum.dt, set.fold ~ pred.type, value.var="log.aum")
 aum.wide[, status := ifelse(
   initial==improved, "same", ifelse(
     initial>improved, "better", "worse"))]
@@ -27,7 +32,7 @@ ggplot()+
   theme_bw()+
   theme(panel.margin=grid::unit(0, "lines"))+
   geom_point(aes(
-    auc, set.name, color=pred.name),
+    auc, set.name, color=pred.type),
     data=auc.improved)
 
 auc.improved[, accuracy.percent := 100-error.percent]
@@ -35,19 +40,19 @@ auc.tall <- melt(auc.improved, measure.vars=c("accuracy.percent", "auc"))
 auc.stats <- auc.tall[, .(
   mean=mean(value),
   sd=sd(value)
-), by=.(set.name, variable, pred.name)]
-auc.only <- auc.stats[variable=="auc" & pred.name=="improved"][order(mean)]
+), by=.(set.name, variable, pred.type)]
+auc.only <- auc.stats[variable=="auc" & pred.type=="improved"][order(mean)]
 set.levs <- auc.only$set.name
 auc.stats[, set.fac := factor(set.name, set.levs)]
 auc.tall[, set.fac := factor(set.name, set.levs)]
 auc.only.wide <- dcast(
-  auc.stats[variable=="auc"], set.name ~ pred.name, value.var="mean")
+  auc.stats[variable=="auc"], set.name ~ pred.type, value.var="mean")
 auc.only.wide[, diff := improved - initial]
 auc.only.wide[order(diff)]
 
 roc.wide <- dcast(
   auc.improved,
-  set.name + fold + set.fold ~ pred.name,
+  set.name + fold + set.fold ~ pred.type,
   value.var=c("auc", "accuracy.percent"))
 roc.wide[, auc_status := ifelse(
   auc_initial==auc_improved, "same", ifelse(
@@ -65,7 +70,7 @@ err.colors <- c(
   fp="red",
   fn="deepskyblue",
   errors="black")
-roc.dt[, seg.i := 1:.N, by=.(set.fold, pred.name)]
+roc.dt[, seg.i := 1:.N, by=.(set.fold, pred.type)]
 roc.dt[, mid.thresh := (min.thresh+max.thresh)/2]
 roc.tall <- melt(
   roc.dt,
@@ -77,7 +82,7 @@ status.colors <- c(
 tallrect.dt <- data.table(
   mid.thresh=seq(-10, 5, by=0.2))
 roc.dots <- roc.dt[tallrect.dt, .(
-  set.fold, pred.name, mid.thresh=i.mid.thresh, FPR, TPR
+  set.fold, pred.type, mid.thresh=i.mid.thresh, FPR, TPR
 ), on=.(
   min.thresh<mid.thresh, max.thresh>mid.thresh)]
 animint(
@@ -92,20 +97,20 @@ animint(
   ##   facet_grid(. ~ variable, scales="free")+
   ##   geom_segment(aes(
   ##     mean+sd, set.fac,
-  ##     color=pred.name, size=pred.name,
+  ##     color=pred.type, size=pred.type,
   ##     xend=mean-sd, yend=set.fac),
   ##     data=auc.stats)+
   ##   scale_size_manual(values=c(improved=2, initial=3))+
   ##   geom_point(aes(
   ##     mean, set.fac,
-  ##     color=pred.name),
+  ##     color=pred.type),
   ##     shape=21,
   ##     size=3,
   ##     fill="white",
   ##     data=auc.stats)+
   ##   geom_point(aes(
   ##     value, set.fac,
-  ##     color=pred.name),
+  ##     color=pred.type),
   ##     clickSelects="set.fold",
   ##     alpha=0.6,
   ##     size=4,
@@ -117,7 +122,7 @@ animint(
     theme_bw()+
     theme(panel.margin=grid::unit(0, "lines"))+
     theme_animint(update_axes="y")+
-    facet_grid(pred.name ~ .)+
+    facet_grid(pred.type ~ .)+
     xlab("Prediction threshold")+
     ylab("Incorrectly predicted labels")+
     geom_vline(aes(
@@ -155,23 +160,23 @@ animint(
     theme(panel.margin=grid::unit(0, "lines"))+
     geom_path(aes(
       FPR, TPR,
-      key=pred.name,
-      color=pred.name, group=pred.name),
+      key=pred.type,
+      color=pred.type, group=pred.type),
       data=roc.dt,
       showSelected="set.fold")+
     geom_point(aes(
-      FPR, TPR, color=pred.name, key=pred.name),
+      FPR, TPR, color=pred.type, key=pred.type),
       fill="white",
       data=auc.improved,
       showSelected="set.fold")+
     geom_point(aes(
-      FPR, TPR, color=pred.name, key=pred.name),
+      FPR, TPR, color=pred.type, key=pred.type),
       data=roc.dots,
       showSelected=c("set.fold", "mid.thresh"),
       size=4,
       alpha=0.5)+
     geom_point(aes(
-      FPR, TPR, color=pred.name, key=paste(pred.name, mid.thresh)),
+      FPR, TPR, color=pred.type, key=paste(pred.type, mid.thresh)),
       data=roc.dots,
       showSelected="set.fold",
       clickSelects="mid.thresh",
@@ -180,7 +185,7 @@ animint(
   ggplot()+
     ggtitle("Percent correctly predicted labels")+
     theme_bw()+
-    theme_animint(width=300)+
+    theme_animint(width=300, height=300)+
     theme(panel.margin=grid::unit(0, "lines"))+
     geom_abline(slope=1, intercept=0, color="grey")+
     scale_color_manual(values=status.colors)+
@@ -191,13 +196,14 @@ animint(
       key=set.fold,
       color=accuracy.percent_status),
       clickSelects="set.fold",
+      showSelected="status",
       alpha=0.6,
       size=4,
-      data=roc.wide),
+      data=roc.wide[, data.table(.SD, status=accuracy.percent_status)]),
   ggplot()+
     ggtitle("Log[Area under Min(FP,FN) + 1]")+
     theme_bw()+
-    theme_animint(width=300)+
+    theme_animint(width=300, height=300)+
     theme(panel.margin=grid::unit(0, "lines"))+
     geom_abline(slope=1, intercept=0, color="grey")+
     guides(color="none")+
@@ -206,6 +212,7 @@ animint(
       initial, improved,
       key=set.fold,
       color=status),
+      showSelected="status",
       clickSelects="set.fold",
       size=4,
       alpha=0.6,
@@ -214,18 +221,18 @@ animint(
   ggplot()+
     ggtitle("Area under the ROC curve")+
     theme_bw()+
-    theme_animint(width=300)+
+    theme_animint(width=300, height=300)+
     theme(panel.margin=grid::unit(0, "lines"))+
     geom_abline(slope=1, intercept=0, color="grey")+
     scale_color_manual("Status",values=status.colors)+
     geom_point(aes(
       auc_initial, auc_improved,
       key=set.fold,
-      color=auc_status),
+      color=status),
       clickSelects="set.fold",
       size=4,
       alpha=0.6,
-      data=roc.wide)+
+      data=roc.wide[, data.table(.SD, status=auc_status)])+
     coord_equal(),
   duration=list(
     set.fold=500,

@@ -375,7 +375,9 @@ improvement in penalty function learning algorithms:
 
 [[file:auc.improved.R]] performs the computation using a gradient descent
 algorithm, and [[file:figure-auc-improved-interactive.R]] visualizes the
-results: [[http://jan.ucc.nau.edu/~th798/viz/2019-08-20-min-area-under-min-fp-fn/][rendered data viz]].
+results:
+- [[http://jan.ucc.nau.edu/~th798/viz/2019-08-20-min-area-under-min-fp-fn/][improvement starting from best predicted when labels get equal weight]].
+- [[http://jan.ucc.nau.edu/~th798/viz/2019-10-03-auc-improved-weighted/][improvement starting from best predicted when classes get equal weight]].
 
 ** 15 Feb 2018 fold assignment code
 
