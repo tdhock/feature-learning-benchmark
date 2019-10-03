@@ -71,25 +71,6 @@ for(i in seq_along(i.todo)){
   test.fold.segs[, errors := wfp+wfn]#equal weight errors.
   test.fold.segs[, mid.log.lambda := (max.log.lambda+min.log.lambda)/2]
   pred.list <- list()
-  target.list <- list(
-    initial=test.fold.errors,
-    weighted=test.fold.segs)
-  for(pred.name in names(target.list)){
-    target.err.dt <- target.list[[pred.name]]
-    test.fold.targets <- penaltyLearning::targetIntervals(
-      target.err.dt, "prob.dir")
-    test.fold.targets[, width := max.log.lambda-min.log.lambda]
-    target.pred <- test.fold.targets[order(width==Inf, -width), data.table(
-      prob.dir,
-      pred.log.lambda=ifelse(
-        max.log.lambda==Inf, min.log.lambda+1, ifelse(
-          min.log.lambda==-Inf, max.log.lambda-1,
-          (min.log.lambda+max.log.lambda)/2)
-      )
-    )]
-    target.pred[!is.finite(pred.log.lambda), pred.log.lambda := 0]
-    pred.list[[pred.name]] <- target.pred
-  }
   ## only need to compute once:
   thresh.dt <- test.fold.errors[order(-min.log.lambda), {
     fp.diff <- diff(fp)
@@ -104,63 +85,82 @@ for(i in seq_along(i.todo)){
   stopifnot(length(ltab)==1)
   ## initialization:
   first.dt <- test.fold.errors[max.log.lambda==Inf]
-  pred.dt <- data.table(pred.list$initial, direction=1)
-  step.number <- 1
-  max.step <- biggest.step
-  improving <- TRUE
-  prev.loss <- Inf
-  while(improving){
-    ## these depend on predictions:
-    thresh.ord <- get.min.fp.fn(pred.dt)
-    thresh.ord[, min.change := c(NA, diff(min.fp.fn))]
-    prob.deriv <- thresh.ord[min.change!=0, .(
-      deriv=-sum(min.change)
-    ), by=.(prob.dir)]
-    pred.dt[, direction := 0]
-    pred.dt[prob.deriv, direction := -deriv, on=.(prob.dir)]
-    ##print(pred.dt[direction != 0])
-    step.size.vec <- seq(0, max.step, l=20)
-    step.size.loss <- sapply(step.size.vec, get.step)
-    yrange.big <- diff(range(step.size.loss))>1e-10
-    if(FALSE){
-      plot(
-        step.size.vec, step.size.loss,
-        main=paste("step", step.number))
-    }
-    loss.inc <- step.size.loss[1]<step.size.loss
-    step.number <- step.number+1
-    is.min <- step.size.loss==min(step.size.loss)
-    best.i <- as.integer(median(which(is.min)))
-    step.size.best <- step.size.vec[best.i]
-    loss <- step.size.loss[best.i]
-    improving <- if(loss < prev.loss && yrange.big){
-      TRUE
-    }else{
-      FALSE
-    }
-    prev.loss <- loss
-    if(any(loss.inc)){
-      first.bigger <- which(loss.inc)[1]
-      if(first.bigger==2){
-        improving <- TRUE
+  target.list <- list(
+    label=test.fold.errors,
+    class=test.fold.segs)
+  for(weight.name in names(target.list)){
+    target.err.dt <- target.list[[weight.name]]
+    test.fold.targets <- penaltyLearning::targetIntervals(
+      target.err.dt, "prob.dir")
+    test.fold.targets[, width := max.log.lambda-min.log.lambda]
+    target.pred <- test.fold.targets[order(width==Inf, -width), data.table(
+      prob.dir,
+      pred.log.lambda=ifelse(
+        max.log.lambda==Inf, min.log.lambda+1, ifelse(
+          min.log.lambda==-Inf, max.log.lambda-1,
+          (min.log.lambda+max.log.lambda)/2)
+      )
+    )]
+    target.pred[!is.finite(pred.log.lambda), pred.log.lambda := 0]
+    pred.list[[paste0(weight.name, ".initial")]] <- target.pred
+    pred.dt <- data.table(target.pred, direction=1)
+    step.number <- 1
+    max.step <- biggest.step
+    improving <- TRUE
+    prev.loss <- Inf
+    while(improving){
+      ## these depend on predictions:
+      thresh.ord <- get.min.fp.fn(pred.dt)
+      thresh.ord[, min.change := c(NA, diff(min.fp.fn))]
+      prob.deriv <- thresh.ord[min.change!=0, .(
+        deriv=-sum(min.change)
+      ), by=.(prob.dir)]
+      pred.dt[, direction := 0]
+      pred.dt[prob.deriv, direction := -deriv, on=.(prob.dir)]
+      ##print(pred.dt[direction != 0])
+      step.size.vec <- seq(0, max.step, l=20)
+      step.size.loss <- sapply(step.size.vec, get.step)
+      yrange.big <- diff(range(step.size.loss))>1e-10
+      if(FALSE){
+        plot(
+          step.size.vec, step.size.loss,
+          main=paste("step", step.number))
       }
-      max.step <- step.size.vec[first.bigger]
+      loss.inc <- step.size.loss[1]<step.size.loss
+      step.number <- step.number+1
+      is.min <- step.size.loss==min(step.size.loss)
+      best.i <- as.integer(median(which(is.min)))
+      step.size.best <- step.size.vec[best.i]
+      loss <- step.size.loss[best.i]
+      improving <- if(loss < prev.loss && yrange.big){
+        TRUE
+      }else{
+        FALSE
+      }
+      prev.loss <- loss
+      if(any(loss.inc)){
+        first.bigger <- which(loss.inc)[1]
+        if(first.bigger==2){
+          improving <- TRUE
+        }
+        max.step <- step.size.vec[first.bigger]
+      }
+      if(step.number %% 20 == 0){
+        max.step <- biggest.step
+      }
+      pred.dt[, pred.log.lambda := pred.log.lambda+step.size.best*direction]
     }
-    if(step.number %% 20 == 0){
-      max.step <- biggest.step
-    }
-    pred.dt[, pred.log.lambda := pred.log.lambda+step.size.best*direction]
+    mid.pred <- test.fold.segs[pred.dt, .(
+      prob.dir,
+      improved.pred=pred.log.lambda,
+      mid.log.lambda), on=.(
+        prob.dir,
+        min.log.lambda < pred.log.lambda,
+        max.log.lambda > pred.log.lambda)]
+    mid.pred[, pred.log.lambda := ifelse(
+      is.finite(mid.log.lambda), improved.pred, mid.log.lambda)]
+    pred.list[[paste0(weight.name, ".improved")]] <- data.table(pred.dt)
   }
-  mid.pred <- test.fold.segs[pred.dt, .(
-    prob.dir,
-    improved.pred=pred.log.lambda,
-    mid.log.lambda), on=.(
-    prob.dir,
-    min.log.lambda < pred.log.lambda,
-    max.log.lambda > pred.log.lambda)]
-  mid.pred[, pred.log.lambda := ifelse(
-    is.finite(mid.log.lambda), improved.pred, mid.log.lambda)]
-  pred.list$improved <- data.table(pred.dt)
   for(pred.name in names(pred.list)){
     pred <- pred.list[[pred.name]]
     L <- penaltyLearning::ROChange(possible.errors, pred, "prob.dir")
@@ -177,6 +177,12 @@ for(i in seq_along(i.todo)){
 }
 (auc.improved <- do.call(rbind, auc.improved.list))
 
-auc.improved[, pred[[1]], by=list(test.fold.i, pred.name)]
+all.pred.dt <- auc.improved[, pred[[1]], by=list(test.fold.i, fold, pred.name)]
+all.pred.dt[, table(test.fold.i, pred.name)]
+pred.wide <- dcast(
+  all.pred.dt,
+  prob.dir + fold ~ pred.name,
+  value.var="pred.log.lambda")
+fwrite(pred.wide, "auc.improved.pred.csv")
 
 saveRDS(auc.improved, "auc.improved.rds")
