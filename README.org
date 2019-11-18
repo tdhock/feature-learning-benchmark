@@ -371,6 +371,12 @@ improvement in penalty function learning algorithms:
   (2) implement code for a loss function that exploits the structure
   of the censored outputs.
 
+** 18 Nov 2019 AUC improvement
+
+[[file:figure-auc-improved-train-predictions.R]] makes
+
+[[file:figure-auc-improved-train-predictions.png]]
+
 ** 20 Aug 2019 Min Area Under Min(FP,FN)
 
 [[file:auc.improved.R]] performs the computation using a gradient descent
