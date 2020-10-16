@@ -24,7 +24,7 @@ above), you should have a =data= directory.
 
 ChIP-seq experiments characterize protein modifications or binding at
 specific genomic locations in specific samples. The machine learning
-problem in these data is structured binary classification.
+problem in these data is structured binary classification / changepoint detection.
 
 ** Source
 
